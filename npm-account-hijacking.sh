@@ -27,36 +27,52 @@ Cyan='\033[0;36m'
 NPMCHECKER () {
 
 exec=$(npm view ${package} maintainers.email 2>&1)
+current_epoch=`date '+%s'`
 
-if [[ $exec =~ "npm ERR!" ]]; then
-	echo -e "[${RED}-${NC}] ${YELLO}Not a Valid NPM package${NC}"
-	exit
+if [[ $exec =~ "npm ERR!" ]] || [[ $exec == "" ]]; then
+	echo -e "[${RED}-${NC}] ${YELLO}Not a Valid NPM package${NC}: ${package}"
 else
-
-	echo -e "[${GREEN}+${NC}] ${YELLO}Checking NPM Package${NC}: $package"
 
 	if [[ $exec =~ "maintainers"  ]]; then
 		email=$(echo -e "$exec \n" | awk '{print $3}')
 		emails=$(echo -e "$email \n" | cut -d "'" -f2 | cut -d "@" -f2 | sort -u | awk 'NF' > /tmp/tmp.txt)
+
 		while read e_mails; do
 			hosts=$(echo $e_mails)
-			host_cmd=$(host $hosts)
+			
+			expiry_date=$(whois "$hosts" | egrep -i "Expiration Date:|Expires on" | head -1 | awk '{print $NF}' | cut -d "+" -f1 | sed "s/\-/:/g" | cut -d "T" -f1 2>&1)
 
-			if [[ $host_cmd =~ 'not found: 2(SERVFAIL)' ]]; then
-				echo -e "[\xE2\x9D\x8C] ${RED}Vulnerable Host${NC} -> [$hosts]"
+			exp_date_stamp=$(date -j -f "%Y:%m:%d" "${expiry_date}" +%s 2>&1)
+
+			if [[ current_epoch > expiry_date ]] || [[ current_epoch == expiry_date ]] ; then
+
+				vuln_mail=$(echo "$email \n" | grep $hosts)
+				
+				vuln_flag=$(echo -e "[\xE2\x9D\x8C]${RED} VULNERABLE ${NC} -> [$hosts] [$vuln_mail]")
+
+				echo -e "[${GREEN}+${NC}] ${YELLO}Checking NPM Package${NC}: $package $vuln_flag"
 			else
-				echo -e "[${GREEN}\xE2\x9C\x94${NC}] Secure Host -> [$hosts]"
+				secure_flag=$(echo -e "[${GREEN}\xE2\x9C\x94${NC}] Secure Host -> [$hosts]")
+				echo -e "[${GREEN}+${NC}] ${YELLO}Checking NPM Package${NC}: $package $secure_flag"
 			fi
 		done < /tmp/tmp.txt
 		
 	else
+		fmail=$(echo -e "$exec")
 		mail=$(echo -e "$exec" | cut -d "'" -f2 | cut -d "@" -f2 | sort -u)
-		host_cmd=$(host $mail)
 
-		if [[ $host_cmd =~ 'not found: 2(SERVFAIL)' ]]; then
-			echo -e "[\xE2\x9D\x8C] ${RED}Vulnerable Host${NC}-> [$mail]"
+		expiry_date=$(whois "$mail" | egrep -i "Expiration Date:|Expires on" | head -1 | awk '{print $NF}' | cut -d "+" -f1 | sed "s/\-/:/g" | cut -d "T" -f1 2>&1)
+
+		exp_date_stamp=$(date -j -f "%Y:%m:%d" "${expiry_date}" +%s 2>&1)
+
+		if [[ current_epoch > expiry_date ]] || [[ current_epoch == expiry_date ]] ; then
+
+			vuln_mail=$(echo "$fmail " | grep $mail)
+			vuln_flag=$(echo -e "[\xE2\x9D\x8C]${RED} VULNERABLE ${NC} -> [$mail] [$vuln_mail]")
+			echo -e "[${GREEN}+${NC}] ${YELLO}Checking NPM Package${NC}: $package $vuln_flag"
 		else
-			echo -e "[${GREEN}\xE2\x9C\x94${NC}] Secure Host -> [$mail]"
+			secure_flag=$(echo -e "[${GREEN}\xE2\x9C\x94${NC}] Secure Host -> [$mail]")
+			echo -e "[${GREEN}+${NC}] ${YELLO}Checking NPM Package${NC}: $package $secure_flag"
 		fi
 fi
 fi
