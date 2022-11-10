@@ -40,11 +40,11 @@ else
 		while read e_mails; do
 			hosts=$(echo $e_mails)
 			
-			expiry_date=$(whois "$hosts" | egrep -i "Expiration Date:|Expires on" | head -1 | awk '{print $NF}' | cut -d "+" -f1 | sed "s/\-/:/g" | cut -d "T" -f1 2>&1)
+			expiry_date=$(whois "$hosts" | egrep -i "Expiration Date" | head -1 | awk '{print $NF}' | cut -d "+" -f1 | sed "s/\-/:/g" | cut -d "T" -f1 2>&1)
 
 			exp_date_stamp=$(date -j -f "%Y:%m:%d" "${expiry_date}" +%s 2>&1)
 
-			if [[ current_epoch > expiry_date ]] || [[ current_epoch == expiry_date ]] ; then
+			if [[ $current_epoch > $exp_date_stamp ]] || [[ $current_epoch == $exp_date_stamp ]] ; then
 
 				vuln_mail=$(echo "$email \n" | grep $hosts)
 				
@@ -61,11 +61,11 @@ else
 		fmail=$(echo -e "$exec")
 		mail=$(echo -e "$exec" | cut -d "'" -f2 | cut -d "@" -f2 | sort -u)
 
-		expiry_date=$(whois "$mail" | egrep -i "Expiration Date:|Expires on" | head -1 | awk '{print $NF}' | cut -d "+" -f1 | sed "s/\-/:/g" | cut -d "T" -f1 2>&1)
+		expiry_date=$(whois "$mail" | egrep -i "Expiration Date" | head -1 | awk '{print $NF}' | cut -d "+" -f1 | sed "s/\-/:/g" | cut -d "T" -f1 2>&1)
 
 		exp_date_stamp=$(date -j -f "%Y:%m:%d" "${expiry_date}" +%s 2>&1)
 
-		if [[ current_epoch > expiry_date ]] || [[ current_epoch == expiry_date ]] ; then
+		if [[ $current_epoch > $exp_date_stamp ]] || [[ $current_epoch == $exp_date_stamp ]] ; then
 
 			vuln_mail=$(echo "$fmail " | grep $mail)
 			vuln_flag=$(echo -e "[\xE2\x9D\x8C]${RED} VULNERABLE ${NC} -> [$mail] [$vuln_mail]")
